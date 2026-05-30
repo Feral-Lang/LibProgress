@@ -1,0 +1,6 @@
+author = 'Electrux';
+name = 'Progress';
+version = '0.0.1'; # Used to check if a package needs updating.
+description = 'Progress Bars! Supports multiple bars simultaneously, even on multiple threads.';
+source = 'https://github.com/Feral-Lang/LibProgress';
+# depends = {};

@@ -1,0 +1,28 @@
+loadlib('progress/Progress');
+
+let term = import('std/term');
+
+let newBar = fn(.kw) {
+    let name = ref(kw['name']) ?? '';
+    let emptyChar = ref(kw['empty']) ?? ' ';
+    let filledChar = ref(kw['filled']) ?? '#';
+    let currentChar = ref(kw['current']) ?? filledChar;
+    return newBarNative(name, emptyChar, filledChar, currentChar);
+};
+
+"
+  var.fn(newPercent) -> Nil
+Set the full percentage for the progress bar `var`.
+"
+let update in ProgressBarTy = fn(newPercent) {
+    self.updateNative(newPercent);
+    updateAll();
+};
+
+"
+  fn(lineWidth = nil) -> Nil
+Renders all the progress bars.
+"
+let updateAll = fn(lineWidth = nil) {
+    updateAllNative(lineWidth ?? term.getWidth());
+};
