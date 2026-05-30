@@ -1,0 +1,22 @@
+let os = import('std/os');
+let rng = import('std/rng');
+let thread = import('std/thread');
+
+let progress = import('progress/progress');
+
+let progressFn = fn(interval, filled = '#', current = '#') {
+    let bar = progress.newBar(name = thread.getCurrentName(), filled = filled, current = current);
+    for let i = 1; i <= 100; ++i {
+        bar.update(i);
+        os.sleep(interval);
+    }
+};
+
+let pool = thread.newPool();
+pool.start();
+for let i = 0; i < 50; ++i {
+    let rngVal = rng.get(2, 20);
+    pool.push(progressFn, rngVal, rngVal % 2 == 0 ? '-' : '#', rngVal % 3 == 0 ? 'C' : '#');
+}
+while !pool.empty() { os.sleep(10); }
+pool.stop();
