@@ -172,6 +172,23 @@ FERAL_FUNC(barUpdateNative, 1, false,
     return vm.getNil();
 }
 
+FERAL_FUNC(barSetName, 1, false,
+           "  var.fn(newName) -> Nil\n"
+           "Set/change the name of the bar `var` as `newName`.\n"
+           "Returns `nil`.")
+{
+    EXPECT(VarStr, args[1], "new name");
+    as<VarProgressBar>(args[0])->setName(as<VarStr>(args[1])->getVal());
+    return vm.getNil();
+}
+
+FERAL_FUNC(barGetName, 0, false,
+           "  var.fn() -> Str\n"
+           "Returns the name of the bar `var` as a String.")
+{
+    return vm.makeVar<VarStr>(loc, as<VarProgressBar>(args[0])->getName());
+}
+
 INIT_DLL(Progress)
 {
     // Register the type names
@@ -181,6 +198,8 @@ INIT_DLL(Progress)
     vm.addLocal(loc, "newBarNative", newBarNative);
     vm.addLocal(loc, "updateAllNative", updateAllNative);
 
+    vm.addTypeFn<VarProgressBar>(loc, "setName", barSetName);
+    vm.addTypeFn<VarProgressBar>(loc, "getName", barGetName);
     vm.addTypeFn<VarProgressBar>(loc, "updateNative", barUpdateNative);
     return true;
 }

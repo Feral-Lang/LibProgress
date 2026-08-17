@@ -5,8 +5,10 @@ let thread = import('std/thread');
 let progress = import('progress/progress');
 
 let progressFn = fn(interval, filled = '#', current = '#') {
-    let bar = progress.newBar(name = thread.getCurrentName(), filled = filled, current = current);
+    let nameBase = thread.getCurrentName();
+    let bar = progress.newBar(name = nameBase, filled = filled, current = current);
     for let i = 1; i <= 100; ++i {
+        bar.setName(nameBase + ' @ ' + i.str());
         bar.update(i);
         os.sleep(interval);
     }

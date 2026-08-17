@@ -29,6 +29,8 @@ public:
 
     void renderBar(size_t lineWidth);
 
+    inline void setName(StringRef newName) { name = newName; }
+    inline StringRef getName() { return name; }
     inline void updatePercent(size_t value) { currentPercent = value; }
     inline bool startedRendering() { return hasStartedRendering; }
 };

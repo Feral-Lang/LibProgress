@@ -1,12 +1,18 @@
 let vec = import('std/vec');
 let package = import('std/package');
 
-let pkg = package.new(
-    name = 'Progress',
-    desc = 'Progress Bars! Supports multiple bars simultaneously, even on multiple threads.',
-    version = '0.1.0',
-    feral = '>=2.2.1',
-    author = vec.new('Chirag-Khandelwal <github@mail.chiragkh.me>')
-);
+let configure = fn(info) {
+    let pkg = package.new(
+        'Progress',
+        desc = 'Progress Bars! Supports multiple bars simultaneously, even on multiple threads.',
+        version = '0.2.0',
+        feral = '>=2.4.1',
+        author = vec.new('Chirag-Khandelwal <github@mail.chiragkh.me>')
+    );
 
-pkg.addTarget('Progress', 'Progress.cpp');
+    let progTarget = pkg.addTarget('Progress');
+    progTarget.findHeaders(info.pkgRoot / 'lib', '(.*).hpp');
+    progTarget.findSources(info.pkgRoot / 'lib', '(.*).cpp');
+
+    return feral.ok(pkg);
+};
