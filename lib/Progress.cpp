@@ -101,7 +101,8 @@ void VarProgressBar::renderBar(size_t lineWidth)
     }
     std::cout << "[";
     size_t currVal = ((float)currentPercent / 100.f) * (float)barSize;
-    size_t remVal  = barSize - currVal;
+    if(currVal > barSize) currVal = barSize;
+    size_t remVal = barSize - currVal;
     for(size_t i = 0; i < currVal; ++i) {
         if(i == currVal - 1) std::cout << currentChar;
         else std::cout << filledChar;
