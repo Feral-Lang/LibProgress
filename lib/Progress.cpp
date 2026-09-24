@@ -8,13 +8,14 @@ namespace fer
 Mutex gMtx;
 Vector<VarProgressBar *> gBars;
 
-constexpr size_t MAX_BAR_SIZE         = 100;
-constexpr const char *ANSI_MOVE_UP    = "\033[1F";
-constexpr const char *ANSI_MOVE_DOWN  = "\033[1E";
-constexpr const char *ANSI_CLEAR_LINE = "\033[2K";
-constexpr const char *ANSI_MOVE_BEGIN = "\r";
+constexpr size_t MAX_BAR_SIZE          = 100;
+constexpr const char ANSI_MOVE_UP[]    = "\033[1F";
+constexpr const char ANSI_MOVE_DOWN[]  = "\033[1E";
+constexpr const char ANSI_CLEAR_LINE[] = "\033[2K";
+constexpr const char ANSI_MOVE_BEGIN[] = "\r";
 // set by updateAllNative
 size_t gLineWidth            = 0;
+char *gWriteBuf              = nullptr;
 Atomic<int64_t> gLastUpdated = 0;
 int64_t gUpdateIntervalMs =
 #if defined(CORE_OS_WINDOWS)
@@ -39,19 +40,22 @@ void updateAllBars(VarProgressBar *finalized = nullptr)
     if(!gBars.empty()) {
         for(size_t i = 0; i < gBars.size(); ++i) {
             if(!gBars[i]->startedRendering()) continue;
-            std::cout << ANSI_MOVE_UP;
+            fwrite(ANSI_MOVE_UP, 1, sizeof(ANSI_MOVE_UP) - 1, stdout);
         }
     }
+    String writeBuf(gLineWidth, ' ');
     if(finalized) {
-        std::cout << ANSI_MOVE_BEGIN << ANSI_CLEAR_LINE;
+        fwrite(ANSI_MOVE_BEGIN, 1, sizeof(ANSI_MOVE_BEGIN) - 1, stdout);
+        fwrite(ANSI_CLEAR_LINE, 1, sizeof(ANSI_CLEAR_LINE) - 1, stdout);
         finalized->renderBar(gLineWidth);
-        std::cout << "\n";
+        fputc('\n', stdout);
         removeBar(finalized);
     }
     for(size_t i = 0; i < gBars.size(); ++i) {
-        std::cout << ANSI_MOVE_BEGIN << ANSI_CLEAR_LINE;
+        fwrite(ANSI_MOVE_BEGIN, 1, sizeof(ANSI_MOVE_BEGIN) - 1, stdout);
+        fwrite(ANSI_CLEAR_LINE, 1, sizeof(ANSI_CLEAR_LINE) - 1, stdout);
         gBars[i]->renderBar(gLineWidth);
-        std::cout << "\n";
+        fputc('\n', stdout);
     }
 }
 
@@ -82,7 +86,7 @@ void VarProgressBar::renderBar(size_t lineWidth)
     hasStartedRendering = true;
     size_t nameLen      = name.size();
     if(!name.empty()) {
-        std::cout << name;
+        fwrite(name.c_str(), 1, name.size(), stdout);
         // at least 2 spaces between name and the bar
         if(lineWidth <= name.size() + 2) return;
         nameLen += 2;
@@ -92,27 +96,31 @@ void VarProgressBar::renderBar(size_t lineWidth)
     if(remainingSpace < 0) return;
     size_t barSize = remainingSpace >= MAX_BAR_SIZE ? MAX_BAR_SIZE : remainingSpace;
     if(!name.empty()) {
-        std::cout << "  ";
+        fwrite("  ", 1, 2, stdout);
         // bar should be right aligned IF name is not empty
         if(remainingSpace > barSize) {
             size_t emptySpace = remainingSpace - barSize;
-            for(size_t i = 0; i < emptySpace; ++i) std::cout << ' ';
+            memset(gWriteBuf, ' ', emptySpace);
+            fwrite(gWriteBuf, 1, emptySpace, stdout);
         }
     }
-    std::cout << "[";
+    fputc('[', stdout);
     size_t currVal = ((float)currentPercent / 100.f) * (float)barSize;
     if(currVal > barSize) currVal = barSize;
     size_t remVal = barSize - currVal;
-    for(size_t i = 0; i < currVal; ++i) {
-        if(i == currVal - 1) std::cout << currentChar;
-        else std::cout << filledChar;
+    if(currVal > 0) {
+        if(currVal > 1) {
+            memset(gWriteBuf, filledChar, currVal - 1);
+            fwrite(gWriteBuf, 1, currVal - 1, stdout);
+        }
+        fwrite(&currentChar, 1, 1, stdout);
     }
-    for(size_t i = 0; i < remVal; ++i) std::cout << emptyChar;
-    std::cout << "]";
-    std::cout << " ";
-    if(currentPercent < 100) std::cout << " ";
-    if(currentPercent < 10) std::cout << " ";
-    std::cout << currentPercent << "%";
+    memset(gWriteBuf, emptyChar, remVal);
+    fwrite(gWriteBuf, 1, remVal, stdout);
+    fwrite("] ", 1, 2, stdout);
+    if(currentPercent < 100) fputc(' ', stdout);
+    if(currentPercent < 10) fputc(' ', stdout);
+    fprintf(stdout, "%zu%%", currentPercent);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
@@ -155,7 +163,11 @@ FERAL_FUNC(updateAllNative, 1, false,
                               std::chrono::system_clock::now().time_since_epoch())
                               .count();
     LockGuard<Mutex> _(gMtx);
-    gLineWidth = lineWidth;
+    if(gLineWidth != lineWidth) {
+        gLineWidth = lineWidth;
+        if(gWriteBuf) free(gWriteBuf);
+        gWriteBuf = (char *)malloc(sizeof(*gWriteBuf) * gLineWidth);
+    }
     if(currentTime - gLastUpdated < gUpdateIntervalMs) return vm.getNil();
     updateAllBars();
     gLastUpdated = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -203,6 +215,11 @@ INIT_DLL(Progress)
     vm.addTypeFn<VarProgressBar>(loc, "getName", barGetName);
     vm.addTypeFn<VarProgressBar>(loc, "updateNative", barUpdateNative);
     return true;
+}
+
+DEINIT_DLL(Progress)
+{
+    if(gWriteBuf) free(gWriteBuf);
 }
 
 } // namespace fer
